@@ -57,7 +57,8 @@ const Dashboard = () => {
   const dateFormatted = today.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
 
   return (
-    <div className="relative flex flex-col min-h-screen w-full overflow-hidden max-w-md mx-auto bg-background pb-24">
+    <>
+      <div className="relative flex flex-col min-h-screen w-full overflow-y-auto max-w-md mx-auto bg-background pb-28">
       {/* Header */}
       <header className="px-6 pt-12 pb-6">
         <div className="flex items-center justify-between mb-1">
@@ -200,11 +201,12 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
-      </main>
+        </main>
+      </div>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - Outside container for true fixed positioning */}
       <BottomNav />
-    </div>
+    </>
   );
 };
 
