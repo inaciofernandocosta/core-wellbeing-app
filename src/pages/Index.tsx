@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import PrincipleCard from "@/components/PrincipleCard";
 import HeroButton from "@/components/HeroButton";
@@ -35,6 +36,7 @@ const principles = [
 ];
 
 const Index = () => {
+  const navigate = useNavigate();
   const [activeSlide, setActiveSlide] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -132,7 +134,7 @@ const Index = () => {
       {/* Bottom CTA */}
       <div className="absolute bottom-0 left-0 w-full p-6 pt-24 bg-gradient-to-t from-background via-background/95 to-transparent z-20 pointer-events-none">
         <div className="pointer-events-auto">
-          <HeroButton>Começar Jornada</HeroButton>
+          <HeroButton onClick={() => navigate('/dashboard')}>Começar Jornada</HeroButton>
         </div>
         <div className="h-1.5 w-32 bg-muted-foreground/20 rounded-full mx-auto mt-6" />
       </div>
