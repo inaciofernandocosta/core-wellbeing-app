@@ -58,7 +58,7 @@ const Dashboard = () => {
 
   return (
     <>
-      <div className="relative flex flex-col h-[100dvh] w-full overflow-hidden max-w-md mx-auto bg-background pb-28">
+      <div className="relative flex flex-col min-h-screen w-full overflow-y-auto max-w-md mx-auto bg-background pb-28">
       {/* Header */}
       <header className="px-6 pt-12 pb-6">
         <div className="flex items-center justify-between mb-1">
