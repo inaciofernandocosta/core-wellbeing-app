@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, Plus, Check, Target, Trash2 } from "lucide-react";
+import { ChevronLeft, Plus, Check, Target, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -48,6 +48,35 @@ const PersonalLife = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", description: "" });
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
+  const [newMilestone, setNewMilestone] = useState<Record<string, string>>({});
+
+  const handleAddMilestone = (goalId: string) => {
+    const text = newMilestone[goalId]?.trim();
+    if (!text) return;
+
+    setGoals(goals.map(goal => {
+      if (goal.id === goalId) {
+        const milestone = { id: Date.now().toString(), text, completed: false };
+        return { ...goal, milestones: [...goal.milestones, milestone] };
+      }
+      return goal;
+    }));
+    setNewMilestone({ ...newMilestone, [goalId]: "" });
+  };
+
+  const deleteMilestone = (goalId: string, milestoneId: string) => {
+    setGoals(goals.map(goal => {
+      if (goal.id === goalId) {
+        const updatedMilestones = goal.milestones.filter(m => m.id !== milestoneId);
+        const completedCount = updatedMilestones.filter(m => m.completed).length;
+        const progress = updatedMilestones.length > 0 
+          ? Math.round((completedCount / updatedMilestones.length) * 100) 
+          : 0;
+        return { ...goal, milestones: updatedMilestones, progress };
+      }
+      return goal;
+    }));
+  };
 
   const handleAddGoal = () => {
     if (!newGoal.title.trim()) return;
@@ -204,34 +233,59 @@ const PersonalLife = () => {
 
                   {expandedGoal === goal.id && (
                     <div className="px-4 pb-4 pt-2 border-t border-border/50">
-                      {goal.milestones.length > 0 ? (
-                        <div className="space-y-2">
+                      {goal.milestones.length > 0 && (
+                        <div className="space-y-2 mb-4">
                           {goal.milestones.map((milestone) => (
-                            <button
+                            <div
                               key={milestone.id}
-                              onClick={() => toggleMilestone(goal.id, milestone.id)}
-                              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 transition-colors"
+                              className="flex items-center gap-2"
                             >
-                              <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
-                                milestone.completed 
-                                  ? 'bg-gradient-to-r from-rose-500 to-pink-500 border-transparent' 
-                                  : 'border-muted-foreground/30'
-                              }`}>
-                                {milestone.completed && <Check className="w-3 h-3 text-white" />}
-                              </div>
-                              <span className={`text-sm ${milestone.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                                {milestone.text}
-                              </span>
-                            </button>
+                              <button
+                                onClick={() => toggleMilestone(goal.id, milestone.id)}
+                                className="flex-1 flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 transition-colors"
+                              >
+                                <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
+                                  milestone.completed 
+                                    ? 'bg-gradient-to-r from-rose-500 to-pink-500 border-transparent' 
+                                    : 'border-muted-foreground/30'
+                                }`}>
+                                  {milestone.completed && <Check className="w-3 h-3 text-white" />}
+                                </div>
+                                <span className={`text-sm text-left ${milestone.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                                  {milestone.text}
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => deleteMilestone(goal.id, milestone.id)}
+                                className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
                           ))}
                         </div>
-                      ) : (
-                        <p className="text-muted-foreground text-sm text-center py-2">Sem marcos definidos</p>
                       )}
+
+                      {/* Add Milestone Input */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <Input
+                          placeholder="Novo marco..."
+                          value={newMilestone[goal.id] || ""}
+                          onChange={(e) => setNewMilestone({ ...newMilestone, [goal.id]: e.target.value })}
+                          onKeyDown={(e) => e.key === "Enter" && handleAddMilestone(goal.id)}
+                          className="h-9 text-sm"
+                        />
+                        <button
+                          onClick={() => handleAddMilestone(goal.id)}
+                          className="h-9 w-9 shrink-0 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 flex items-center justify-center hover:scale-105 transition-transform"
+                        >
+                          <Plus className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
                       
                       <button
                         onClick={() => deleteGoal(goal.id)}
-                        className="mt-4 w-full flex items-center justify-center gap-2 text-destructive text-sm font-medium py-2 rounded-xl hover:bg-destructive/10 transition-colors"
+                        className="w-full flex items-center justify-center gap-2 text-destructive text-sm font-medium py-2 rounded-xl hover:bg-destructive/10 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                         Excluir meta
