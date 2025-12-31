@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Clock, CalendarDays } from "lucide-react";
+import { Clock, CalendarDays, Target, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Goal, defaultGoals, getGoalsByPillar } from "@/data/goals";
 
 export type Pillar = "vida" | "trabalho" | "saude" | "familia" | "objetivos";
 export type Priority = "alta" | "media" | "baixa";
@@ -20,6 +21,7 @@ export interface ScheduleEvent {
   date: Date;
   endDate?: Date;
   pillar: Pillar;
+  goalId?: string;
   priority: Priority;
   hasTime?: boolean;
   startTime?: string;
@@ -46,6 +48,7 @@ interface AddEventDialogProps {
   onAddEvent: (event: Omit<ScheduleEvent, "id">) => void;
   selectedDate?: Date;
   defaultPillar?: Pillar;
+  goals?: Goal[];
   triggerButton?: React.ReactNode;
 }
 
@@ -55,11 +58,13 @@ const AddEventDialog = ({
   onAddEvent,
   selectedDate,
   defaultPillar = "vida",
+  goals = defaultGoals,
   triggerButton 
 }: AddEventDialogProps) => {
   const [newEvent, setNewEvent] = useState({
     title: "",
     pillar: defaultPillar,
+    goalId: "",
     priority: "media" as Priority,
     hasTime: false,
     startTime: "",
@@ -71,6 +76,19 @@ const AddEventDialog = ({
 
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
+  const [showGoalsList, setShowGoalsList] = useState(false);
+
+  // Get goals filtered by selected pillar
+  const pillarGoals = getGoalsByPillar(goals, newEvent.pillar);
+  const selectedGoal = goals.find(g => g.id === newEvent.goalId);
+
+  // Reset goalId when pillar changes
+  useEffect(() => {
+    const currentGoalBelongsToPillar = pillarGoals.some(g => g.id === newEvent.goalId);
+    if (!currentGoalBelongsToPillar) {
+      setNewEvent(prev => ({ ...prev, goalId: "" }));
+    }
+  }, [newEvent.pillar]);
 
   const handleAddEvent = () => {
     if (!newEvent.title.trim()) return;
@@ -80,6 +98,7 @@ const AddEventDialog = ({
       date: newEvent.startDate,
       endDate: newEvent.hasDateRange && newEvent.endDate ? newEvent.endDate : undefined,
       pillar: newEvent.pillar,
+      goalId: newEvent.goalId || undefined,
       priority: newEvent.priority,
       hasTime: newEvent.hasTime,
       startTime: newEvent.hasTime && newEvent.startTime ? newEvent.startTime : undefined,
@@ -89,6 +108,7 @@ const AddEventDialog = ({
     setNewEvent({ 
       title: "", 
       pillar: defaultPillar, 
+      goalId: "",
       priority: "media",
       hasTime: false, 
       startTime: "", 
@@ -97,6 +117,7 @@ const AddEventDialog = ({
       startDate: selectedDate || new Date(),
       endDate: undefined,
     });
+    setShowGoalsList(false);
     onOpenChange(false);
   };
 
@@ -144,6 +165,66 @@ const AddEventDialog = ({
                   <span className="text-[11px]">{config.label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Goal Selection */}
+          <div>
+            <Label className="text-sm flex items-center gap-1.5">
+              <Target className="w-3.5 h-3.5" />
+              Meta vinculada
+            </Label>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setShowGoalsList(!showGoalsList)}
+                className={cn(
+                  "w-full flex items-center justify-between p-2.5 rounded-lg border transition-all text-left",
+                  selectedGoal 
+                    ? "border-primary bg-primary/10" 
+                    : "border-border bg-card hover:bg-muted"
+                )}
+              >
+                <span className="text-xs truncate">
+                  {selectedGoal ? selectedGoal.title : "Selecionar meta..."}
+                </span>
+                <ChevronDown className={cn(
+                  "w-4 h-4 text-muted-foreground transition-transform",
+                  showGoalsList && "rotate-180"
+                )} />
+              </button>
+              
+              {showGoalsList && (
+                <div className="mt-2 max-h-32 overflow-y-auto space-y-1.5 animate-fade-in">
+                  {pillarGoals.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2 text-center">
+                      Nenhuma meta neste pilar
+                    </p>
+                  ) : (
+                    pillarGoals.map((goal) => (
+                      <button
+                        key={goal.id}
+                        type="button"
+                        onClick={() => {
+                          setNewEvent({ ...newEvent, goalId: goal.id });
+                          setShowGoalsList(false);
+                        }}
+                        className={cn(
+                          "w-full text-left px-3 py-2 rounded-lg text-xs transition-all",
+                          newEvent.goalId === goal.id
+                            ? "bg-primary/20 text-foreground ring-1 ring-primary"
+                            : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        <span className="font-medium">{goal.title}</span>
+                        <span className="block text-[10px] opacity-70 mt-0.5">
+                          {goal.progress}% concluído
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
