@@ -11,13 +11,23 @@ import BottomNav from "@/components/BottomNav";
 import type { DateRange } from "react-day-picker";
 
 type EventCategory = "feriado" | "aniversario" | "ferias" | "evento" | "familia" | "trabalho";
+type Pillar = "vida" | "trabalho" | "saude" | "familia" | "objetivos";
 
 interface ScheduleEvent {
   id: string;
   title: string;
   date: Date;
   category: EventCategory;
+  pillar?: Pillar;
 }
+
+const pillarConfig: Record<Pillar, { label: string; color: string; icon: string }> = {
+  vida: { label: "Vida Pessoal", color: "from-rose-500 to-pink-500", icon: "❤️" },
+  trabalho: { label: "Trabalho", color: "from-blue-500 to-cyan-500", icon: "💼" },
+  saude: { label: "Saúde", color: "from-primary to-emerald-400", icon: "⚡" },
+  familia: { label: "Família", color: "from-amber-500 to-orange-500", icon: "👨‍👩‍👧‍👦" },
+  objetivos: { label: "Objetivos", color: "from-violet-500 to-purple-500", icon: "🎯" },
+};
 
 const categoryConfig: Record<EventCategory, { label: string; color: string; priority: number }> = {
   feriado: { label: "Feriado", color: "bg-red-500", priority: 1 },
@@ -33,16 +43,18 @@ const CalendarPage = () => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [events, setEvents] = useState<ScheduleEvent[]>([
     // Sample events
-    { id: "1", title: "Viagem", date: new Date(2026, 0, 31), category: "familia" },
-    { id: "2", title: "Carnaval", date: new Date(2026, 1, 16), category: "feriado" },
-    { id: "3", title: "Aniversário da Mãe", date: new Date(2026, 1, 20), category: "aniversario" },
-    { id: "4", title: "Férias", date: new Date(2026, 0, 15), category: "ferias" },
-    { id: "5", title: "Reunião importante", date: new Date(2026, 0, 10), category: "trabalho" },
+    { id: "1", title: "Viagem Rio de Janeiro", date: new Date(2026, 0, 31), category: "familia", pillar: "familia" },
+    { id: "2", title: "Carnaval", date: new Date(2026, 1, 16), category: "feriado", pillar: "vida" },
+    { id: "3", title: "Aniversário da Mãe", date: new Date(2026, 1, 20), category: "aniversario", pillar: "familia" },
+    { id: "4", title: "Férias", date: new Date(2026, 0, 15), category: "ferias", pillar: "vida" },
+    { id: "5", title: "Reunião importante", date: new Date(2026, 0, 10), category: "trabalho", pillar: "trabalho" },
+    { id: "6", title: "Academia", date: new Date(2026, 0, 6), category: "evento", pillar: "saude" },
   ]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: "",
     category: "familia" as EventCategory,
+    pillar: "vida" as Pillar,
   });
 
   const handlePrevMonth = () => {
@@ -68,10 +80,11 @@ const CalendarPage = () => {
       title: newEvent.title,
       date: dateToUse,
       category: newEvent.category,
+      pillar: newEvent.pillar,
     };
 
     setEvents([...events, event]);
-    setNewEvent({ title: "", category: "familia" });
+    setNewEvent({ title: "", category: "familia", pillar: "vida" });
     setIsDialogOpen(false);
   };
 
@@ -284,7 +297,7 @@ const CalendarPage = () => {
                   </div>
 
                   <div>
-                    <Label className="text-sm">Categoria</Label>
+                    <Label className="text-sm">Categoria (prioridade)</Label>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {Object.entries(categoryConfig).map(([key, config]) => (
                         <button
@@ -296,16 +309,42 @@ const CalendarPage = () => {
                               category: key as EventCategory,
                             })
                           }
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left ${
+                          className={`flex items-center gap-2 p-2 rounded-lg border transition-all text-left ${
                             newEvent.category === key
                               ? "border-primary bg-primary/10"
                               : "border-border bg-card hover:bg-muted"
                           }`}
                         >
                           <span
-                            className={`w-2.5 h-2.5 rounded-full ${config.color}`}
+                            className={`w-2 h-2 rounded-full ${config.color}`}
                           />
-                          <span className="text-xs">{config.label}</span>
+                          <span className="text-[11px]">{config.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm">Pilar da vida</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {Object.entries(pillarConfig).map(([key, config]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() =>
+                            setNewEvent({
+                              ...newEvent,
+                              pillar: key as Pillar,
+                            })
+                          }
+                          className={`flex items-center gap-2 p-2 rounded-lg border transition-all text-left ${
+                            newEvent.pillar === key
+                              ? "border-primary bg-primary/10"
+                              : "border-border bg-card hover:bg-muted"
+                          }`}
+                        >
+                          <span className="text-sm">{config.icon}</span>
+                          <span className="text-[11px]">{config.label}</span>
                         </button>
                       ))}
                     </div>
@@ -346,10 +385,19 @@ const CalendarPage = () => {
                       <p className="font-medium text-foreground text-sm truncate">
                         {event.title}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        <span className="mr-2">{format(event.date, "d MMM", { locale: ptBR })}</span>
-                        {categoryConfig[event.category].label}
-                      </p>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
+                        <span>{format(event.date, "d MMM", { locale: ptBR })}</span>
+                        <span>•</span>
+                        <span>{categoryConfig[event.category].label}</span>
+                        {event.pillar && (
+                          <>
+                            <span>•</span>
+                            <span className={`font-medium bg-gradient-to-r ${pillarConfig[event.pillar].color} bg-clip-text text-transparent`}>
+                              {pillarConfig[event.pillar].label}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <Button
                       variant="ghost"
