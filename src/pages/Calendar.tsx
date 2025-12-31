@@ -3,44 +3,16 @@ import { format, addMonths, subMonths, isSameDay, isSameMonth, isWithinInterval,
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { ChevronLeft, ChevronRight, Plus, Trash2, X, Clock } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import AddEventDialog, { 
+  ScheduleEvent, 
+  EventCategory, 
+  Pillar, 
+  categoryConfig, 
+  pillarConfig 
+} from "@/components/AddEventDialog";
 import type { DateRange } from "react-day-picker";
-
-type EventCategory = "feriado" | "aniversario" | "ferias" | "evento" | "familia" | "trabalho";
-type Pillar = "vida" | "trabalho" | "saude" | "familia" | "objetivos";
-
-interface ScheduleEvent {
-  id: string;
-  title: string;
-  date: Date;
-  category: EventCategory;
-  pillar?: Pillar;
-  hasTime?: boolean;
-  startTime?: string;
-  endTime?: string;
-}
-
-const pillarConfig: Record<Pillar, { label: string; color: string; icon: string }> = {
-  vida: { label: "Vida Pessoal", color: "from-rose-500 to-pink-500", icon: "❤️" },
-  trabalho: { label: "Trabalho", color: "from-blue-500 to-cyan-500", icon: "💼" },
-  saude: { label: "Saúde", color: "from-primary to-emerald-400", icon: "⚡" },
-  familia: { label: "Família", color: "from-amber-500 to-orange-500", icon: "👨‍👩‍👧‍👦" },
-  objetivos: { label: "Objetivos", color: "from-violet-500 to-purple-500", icon: "🎯" },
-};
-
-const categoryConfig: Record<EventCategory, { label: string; color: string; priority: number }> = {
-  feriado: { label: "Feriado", color: "bg-red-500", priority: 1 },
-  aniversario: { label: "Aniversário", color: "bg-pink-500", priority: 2 },
-  ferias: { label: "Férias", color: "bg-amber-500", priority: 3 },
-  evento: { label: "Evento Importante", color: "bg-purple-500", priority: 4 },
-  familia: { label: "Família & Amigos", color: "bg-blue-500", priority: 5 },
-  trabalho: { label: "Trabalho", color: "bg-muted-foreground/50", priority: 6 },
-};
 
 const CalendarPage = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -55,14 +27,6 @@ const CalendarPage = () => {
     { id: "6", title: "Academia", date: new Date(2026, 0, 6), category: "evento", pillar: "saude", hasTime: true, startTime: "07:00", endTime: "08:00" },
   ]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newEvent, setNewEvent] = useState({
-    title: "",
-    category: "familia" as EventCategory,
-    pillar: "vida" as Pillar,
-    hasTime: false,
-    startTime: "",
-    endTime: "",
-  });
 
   const handlePrevMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
@@ -78,23 +42,13 @@ const CalendarPage = () => {
     setDateRange(undefined);
   };
 
-  const handleAddEvent = () => {
-    const dateToUse = dateRange?.from || new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    if (!newEvent.title.trim()) return;
-
+  const handleAddEvent = (eventData: Omit<ScheduleEvent, "id">) => {
     const event: ScheduleEvent = {
       id: Date.now().toString(),
-      title: newEvent.title,
-      date: dateToUse,
-      category: newEvent.category,
-      pillar: newEvent.pillar,
-      hasTime: newEvent.hasTime,
-      startTime: newEvent.hasTime && newEvent.startTime ? newEvent.startTime : undefined,
-      endTime: newEvent.hasTime && newEvent.endTime ? newEvent.endTime : undefined,
+      ...eventData,
     };
 
     setEvents([...events, event]);
-    setNewEvent({ title: "", category: "familia", pillar: "vida", hasTime: false, startTime: "", endTime: "" });
     setIsDialogOpen(false);
   };
 
@@ -281,134 +235,18 @@ const CalendarPage = () => {
                 {displayedEvents.length} {displayedEvents.length === 1 ? 'compromisso' : 'compromissos'}
               </p>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
+            <AddEventDialog
+              open={isDialogOpen}
+              onOpenChange={setIsDialogOpen}
+              onAddEvent={handleAddEvent}
+              selectedDate={dateRange?.from || new Date()}
+              triggerButton={
                 <Button size="sm" className="bg-primary text-primary-foreground h-8 text-xs">
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   Adicionar
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-[340px] rounded-2xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Novo Compromisso</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-4">
-                  <div>
-                    <Label htmlFor="title" className="text-sm">O que é?</Label>
-                    <Input
-                      id="title"
-                      placeholder="Ex: Jantar com a família"
-                      value={newEvent.title}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, title: e.target.value })
-                      }
-                      className="mt-1.5"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-sm">Categoria (prioridade)</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {Object.entries(categoryConfig).map(([key, config]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() =>
-                            setNewEvent({
-                              ...newEvent,
-                              category: key as EventCategory,
-                            })
-                          }
-                          className={`flex items-center gap-2 p-2 rounded-lg border transition-all text-left ${
-                            newEvent.category === key
-                              ? "border-primary bg-primary/10"
-                              : "border-border bg-card hover:bg-muted"
-                          }`}
-                        >
-                          <span
-                            className={`w-2 h-2 rounded-full ${config.color}`}
-                          />
-                          <span className="text-[11px]">{config.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm">Pilar da vida</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {Object.entries(pillarConfig).map(([key, config]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() =>
-                            setNewEvent({
-                              ...newEvent,
-                              pillar: key as Pillar,
-                            })
-                          }
-                          className={`flex items-center gap-2 p-2 rounded-lg border transition-all text-left ${
-                            newEvent.pillar === key
-                              ? "border-primary bg-primary/10"
-                              : "border-border bg-card hover:bg-muted"
-                          }`}
-                        >
-                          <span className="text-sm">{config.icon}</span>
-                          <span className="text-[11px]">{config.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Time Toggle */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-muted-foreground" />
-                        <Label className="text-sm">Definir horário</Label>
-                      </div>
-                      <Switch
-                        checked={newEvent.hasTime}
-                        onCheckedChange={(checked) =>
-                          setNewEvent({ ...newEvent, hasTime: checked, startTime: "", endTime: "" })
-                        }
-                      />
-                    </div>
-
-                    {newEvent.hasTime && (
-                      <div className="flex gap-3 animate-fade-in">
-                        <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">Início</Label>
-                          <Input
-                            type="time"
-                            value={newEvent.startTime}
-                            onChange={(e) =>
-                              setNewEvent({ ...newEvent, startTime: e.target.value })
-                            }
-                            className="mt-1 h-9"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <Label className="text-xs text-muted-foreground">Fim (opcional)</Label>
-                          <Input
-                            type="time"
-                            value={newEvent.endTime}
-                            onChange={(e) =>
-                              setNewEvent({ ...newEvent, endTime: e.target.value })
-                            }
-                            className="mt-1 h-9"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <Button onClick={handleAddEvent} className="w-full">
-                    Salvar
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+              }
+            />
           </div>
 
           {/* Events List - Scrollable */}
