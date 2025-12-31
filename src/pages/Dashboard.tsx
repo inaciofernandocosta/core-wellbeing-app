@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ChevronRight, Zap, Target, Heart, Users, Briefcase } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
@@ -54,6 +55,7 @@ const todayTasks = [
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [showAllPillars, setShowAllPillars] = useState(false);
   const today = new Date();
   const dayName = today.toLocaleDateString('pt-BR', { weekday: 'long' });
   const dateFormatted = today.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
@@ -104,14 +106,17 @@ const Dashboard = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-foreground">Os 5 Pilares</h2>
-            <button className="text-primary text-sm font-semibold flex items-center gap-1 hover:opacity-80 transition-opacity">
-              Ver todos
+            <button 
+              onClick={() => setShowAllPillars((prev) => !prev)}
+              className="text-primary text-sm font-semibold flex items-center gap-1 hover:opacity-80 transition-opacity"
+            >
+              {showAllPillars ? "Ver menos" : "Ver todos"}
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
           
           <div className="grid grid-cols-2 gap-3">
-            {pillars.slice(0, 4).map((pillar) => {
+            {(showAllPillars ? pillars : pillars.slice(0, 4)).map((pillar) => {
               const Icon = pillar.icon;
               return (
                 <div 
@@ -138,36 +143,38 @@ const Dashboard = () => {
           </div>
           
           {/* Fifth pillar - full width */}
-          <div className="mt-3">
-            {pillars.slice(4).map((pillar) => {
-              const Icon = pillar.icon;
-              return (
-                <div 
-                  key={pillar.id}
-                  className="bg-card rounded-2xl p-4 ring-1 ring-border/50 shadow-card dark:shadow-card-dark hover:scale-[1.02] transition-transform cursor-pointer flex items-center gap-4"
-                >
-                  <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${pillar.color} flex items-center justify-center shrink-0`}>
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground text-sm mb-1">{pillar.name}</h3>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full bg-gradient-to-r ${pillar.color} rounded-full`}
-                          style={{ width: `${pillar.progress}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-bold text-muted-foreground">{pillar.progress}%</span>
+          {!showAllPillars && (
+            <div className="mt-3">
+              {pillars.slice(4).map((pillar) => {
+                const Icon = pillar.icon;
+                return (
+                  <div 
+                    key={pillar.id}
+                    className="bg-card rounded-2xl p-4 ring-1 ring-border/50 shadow-card dark:shadow-card-dark hover:scale-[1.02] transition-transform cursor-pointer flex items-center gap-4"
+                  >
+                    <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${pillar.color} flex items-center justify-center shrink-0`}>
+                      <Icon className="w-5 h-5 text-white" />
                     </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground text-sm mb-1">{pillar.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full bg-gradient-to-r ${pillar.color} rounded-full`}
+                            style={{ width: `${pillar.progress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-muted-foreground">{pillar.progress}%</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-full">
+                      {pillar.tasks} tarefas
+                    </span>
                   </div>
-                  <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-full">
-                    {pillar.tasks} tarefas
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div>
