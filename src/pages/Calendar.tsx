@@ -7,9 +7,9 @@ import { ChevronLeft, ChevronRight, Plus, Trash2, X, Clock } from "lucide-react"
 import BottomNav from "@/components/BottomNav";
 import AddEventDialog, { 
   ScheduleEvent, 
-  EventCategory, 
   Pillar, 
-  categoryConfig, 
+  Priority,
+  priorityConfig, 
   pillarConfig 
 } from "@/components/AddEventDialog";
 import type { DateRange } from "react-day-picker";
@@ -19,12 +19,12 @@ const CalendarPage = () => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [events, setEvents] = useState<ScheduleEvent[]>([
     // Sample events
-    { id: "1", title: "Viagem Rio de Janeiro", date: new Date(2026, 0, 31), category: "familia", pillar: "familia" },
-    { id: "2", title: "Carnaval", date: new Date(2026, 1, 16), category: "feriado", pillar: "vida" },
-    { id: "3", title: "Aniversário da Mãe", date: new Date(2026, 1, 20), category: "aniversario", pillar: "familia", hasTime: true, startTime: "19:00" },
-    { id: "4", title: "Férias", date: new Date(2026, 0, 15), category: "ferias", pillar: "vida" },
-    { id: "5", title: "Reunião importante", date: new Date(2026, 0, 10), category: "trabalho", pillar: "trabalho", hasTime: true, startTime: "14:00", endTime: "15:30" },
-    { id: "6", title: "Academia", date: new Date(2026, 0, 6), category: "evento", pillar: "saude", hasTime: true, startTime: "07:00", endTime: "08:00" },
+    { id: "1", title: "Viagem Rio de Janeiro", date: new Date(2026, 0, 31), pillar: "familia", priority: "alta" },
+    { id: "2", title: "Carnaval", date: new Date(2026, 1, 16), pillar: "vida", priority: "alta" },
+    { id: "3", title: "Aniversário da Mãe", date: new Date(2026, 1, 20), pillar: "familia", priority: "alta", hasTime: true, startTime: "19:00" },
+    { id: "4", title: "Férias", date: new Date(2026, 0, 15), pillar: "vida", priority: "alta" },
+    { id: "5", title: "Reunião importante", date: new Date(2026, 0, 10), pillar: "trabalho", priority: "media", hasTime: true, startTime: "14:00", endTime: "15:30" },
+    { id: "6", title: "Academia", date: new Date(2026, 0, 6), pillar: "saude", priority: "baixa", hasTime: true, startTime: "07:00", endTime: "08:00" },
   ]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -56,10 +56,12 @@ const CalendarPage = () => {
     setEvents(events.filter((e) => e.id !== id));
   };
 
+  const priorityOrder: Record<Priority, number> = { alta: 1, media: 2, baixa: 3 };
+
   const getEventsForDate = (date: Date) => {
     return events
       .filter((event) => isSameDay(event.date, date))
-      .sort((a, b) => categoryConfig[a.category].priority - categoryConfig[b.category].priority);
+      .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
   };
 
   // Get events for a date range
@@ -74,7 +76,7 @@ const CalendarPage = () => {
       .sort((a, b) => {
         const dateDiff = a.date.getTime() - b.date.getTime();
         if (dateDiff !== 0) return dateDiff;
-        return categoryConfig[a.category].priority - categoryConfig[b.category].priority;
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
       });
   };
 
@@ -85,7 +87,7 @@ const CalendarPage = () => {
       .sort((a, b) => {
         const dateDiff = a.date.getTime() - b.date.getTime();
         if (dateDiff !== 0) return dateDiff;
-        return categoryConfig[a.category].priority - categoryConfig[b.category].priority;
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
       });
   };
 
@@ -114,10 +116,10 @@ const CalendarPage = () => {
   // Check if there's any selection
   const hasSelection = dateRange?.from !== undefined;
 
-  // Get highest priority category for a date (for calendar dots)
-  const getHighestPriorityCategory = (date: Date): EventCategory | null => {
+  // Get highest priority for a date (for calendar dots)
+  const getHighestPriorityForDate = (date: Date): Priority | null => {
     const dateEvents = getEventsForDate(date);
-    return dateEvents.length > 0 ? dateEvents[0].category : null;
+    return dateEvents.length > 0 ? dateEvents[0].priority : null;
   };
 
   return (
@@ -179,13 +181,13 @@ const CalendarPage = () => {
             }}
             components={{
               DayContent: ({ date }) => {
-                const category = getHighestPriorityCategory(date);
+                const priority = getHighestPriorityForDate(date);
                 return (
                   <div className="relative w-full h-full flex items-center justify-center">
                     {date.getDate()}
-                    {category && (
+                    {priority && (
                       <span
-                        className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${categoryConfig[category].color}`}
+                        className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${priorityConfig[priority].color}`}
                       />
                     )}
                   </div>
@@ -211,10 +213,10 @@ const CalendarPage = () => {
         {/* Priority Legend - Compact */}
         <div className="px-6 mt-3">
           <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wider font-medium">
-            Ordem de Prioridade
+            Legenda de Prioridade
           </p>
           <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {Object.entries(categoryConfig).map(([key, config]) => (
+            {Object.entries(priorityConfig).map(([key, config]) => (
               <div
                 key={key}
                 className="flex items-center gap-1 text-[10px] text-muted-foreground"
@@ -269,7 +271,7 @@ const CalendarPage = () => {
                   >
                     <span
                       className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                        categoryConfig[event.category].color
+                        priorityConfig[event.priority].color
                       }`}
                     />
                     <div className="flex-1 min-w-0">
@@ -286,15 +288,11 @@ const CalendarPage = () => {
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
                         <span>{format(event.date, "d MMM", { locale: ptBR })}</span>
                         <span>•</span>
-                        <span>{categoryConfig[event.category].label}</span>
-                        {event.pillar && (
-                          <>
-                            <span>•</span>
-                            <span className={`font-medium bg-gradient-to-r ${pillarConfig[event.pillar].color} bg-clip-text text-transparent`}>
-                              {pillarConfig[event.pillar].label}
-                            </span>
-                          </>
-                        )}
+                        <span className={`font-medium bg-gradient-to-r ${pillarConfig[event.pillar].color} bg-clip-text text-transparent`}>
+                          {pillarConfig[event.pillar].label}
+                        </span>
+                        <span>•</span>
+                        <span>{priorityConfig[event.priority].label}</span>
                       </div>
                     </div>
                     <Button
