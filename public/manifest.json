@@ -1,7 +1,7 @@
 {
   "name": "Personal Agenda - Life OS",
   "short_name": "Life OS",
-  "description": "O sistema definitivo para equilibrar seus objetivos e seu bem-estar",
+  "description": "Equilibre seus objetivos e seu bem-estar",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#102217",

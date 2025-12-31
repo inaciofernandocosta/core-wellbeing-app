@@ -85,7 +85,7 @@ const Index = () => {
               </span>
             </h1>
             <p className="text-muted-foreground text-lg font-medium leading-relaxed">
-              O sistema definitivo para equilibrar seus objetivos e seu bem-estar, sem perder a flexibilidade do dia a dia.
+              Equilibre seus objetivos e seu bem-estar, sem perder a flexibilidade do dia a dia.
             </p>
           </div>
         </div>
