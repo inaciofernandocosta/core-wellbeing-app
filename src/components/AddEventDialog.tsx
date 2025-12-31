@@ -11,36 +11,33 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-export type EventCategory = "feriado" | "aniversario" | "ferias" | "evento" | "familia" | "trabalho";
 export type Pillar = "vida" | "trabalho" | "saude" | "familia" | "objetivos";
+export type Priority = "alta" | "media" | "baixa";
 
 export interface ScheduleEvent {
   id: string;
   title: string;
   date: Date;
   endDate?: Date;
-  category: EventCategory;
-  pillar?: Pillar;
+  pillar: Pillar;
+  priority: Priority;
   hasTime?: boolean;
   startTime?: string;
   endTime?: string;
 }
 
-export const pillarConfig: Record<Pillar, { label: string; color: string; icon: string }> = {
-  vida: { label: "Vida Pessoal", color: "from-rose-500 to-pink-500", icon: "❤️" },
-  trabalho: { label: "Trabalho", color: "from-blue-500 to-cyan-500", icon: "💼" },
-  saude: { label: "Saúde", color: "from-primary to-emerald-400", icon: "⚡" },
-  familia: { label: "Família", color: "from-amber-500 to-orange-500", icon: "👨‍👩‍👧‍👦" },
-  objetivos: { label: "Objetivos", color: "from-violet-500 to-purple-500", icon: "🎯" },
+export const pillarConfig: Record<Pillar, { label: string; color: string; bgColor: string; icon: string }> = {
+  vida: { label: "Vida Pessoal", color: "from-rose-500 to-pink-500", bgColor: "bg-rose-500", icon: "❤️" },
+  trabalho: { label: "Trabalho", color: "from-blue-500 to-cyan-500", bgColor: "bg-blue-500", icon: "💼" },
+  saude: { label: "Saúde", color: "from-primary to-emerald-400", bgColor: "bg-emerald-500", icon: "⚡" },
+  familia: { label: "Família", color: "from-amber-500 to-orange-500", bgColor: "bg-amber-500", icon: "👨‍👩‍👧‍👦" },
+  objetivos: { label: "Objetivos", color: "from-violet-500 to-purple-500", bgColor: "bg-violet-500", icon: "🎯" },
 };
 
-export const categoryConfig: Record<EventCategory, { label: string; color: string; priority: number }> = {
-  feriado: { label: "Feriado", color: "bg-red-500", priority: 1 },
-  aniversario: { label: "Aniversário", color: "bg-pink-500", priority: 2 },
-  ferias: { label: "Férias", color: "bg-amber-500", priority: 3 },
-  evento: { label: "Evento Importante", color: "bg-purple-500", priority: 4 },
-  familia: { label: "Família & Amigos", color: "bg-blue-500", priority: 5 },
-  trabalho: { label: "Trabalho", color: "bg-muted-foreground/50", priority: 6 },
+export const priorityConfig: Record<Priority, { label: string; color: string; icon: string }> = {
+  alta: { label: "Alta", color: "bg-red-500", icon: "🔴" },
+  media: { label: "Média", color: "bg-amber-500", icon: "🟡" },
+  baixa: { label: "Baixa", color: "bg-green-500", icon: "🟢" },
 };
 
 interface AddEventDialogProps {
@@ -62,8 +59,8 @@ const AddEventDialog = ({
 }: AddEventDialogProps) => {
   const [newEvent, setNewEvent] = useState({
     title: "",
-    category: "familia" as EventCategory,
     pillar: defaultPillar,
+    priority: "media" as Priority,
     hasTime: false,
     startTime: "",
     endTime: "",
@@ -82,8 +79,8 @@ const AddEventDialog = ({
       title: newEvent.title,
       date: newEvent.startDate,
       endDate: newEvent.hasDateRange && newEvent.endDate ? newEvent.endDate : undefined,
-      category: newEvent.category,
       pillar: newEvent.pillar,
+      priority: newEvent.priority,
       hasTime: newEvent.hasTime,
       startTime: newEvent.hasTime && newEvent.startTime ? newEvent.startTime : undefined,
       endTime: newEvent.hasTime && newEvent.endTime ? newEvent.endTime : undefined,
@@ -91,8 +88,8 @@ const AddEventDialog = ({
 
     setNewEvent({ 
       title: "", 
-      category: "familia", 
       pillar: defaultPillar, 
+      priority: "media",
       hasTime: false, 
       startTime: "", 
       endTime: "",
@@ -125,34 +122,6 @@ const AddEventDialog = ({
           </div>
 
           <div>
-            <Label className="text-sm">Categoria (prioridade)</Label>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {Object.entries(categoryConfig).map(([key, config]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() =>
-                    setNewEvent({
-                      ...newEvent,
-                      category: key as EventCategory,
-                    })
-                  }
-                  className={`flex items-center gap-2 p-2 rounded-lg border transition-all text-left ${
-                    newEvent.category === key
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-card hover:bg-muted"
-                  }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${config.color}`}
-                  />
-                  <span className="text-[11px]">{config.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
             <Label className="text-sm">Pilar da vida</Label>
             <div className="grid grid-cols-2 gap-2 mt-2">
               {Object.entries(pillarConfig).map(([key, config]) => (
@@ -172,6 +141,32 @@ const AddEventDialog = ({
                   }`}
                 >
                   <span className="text-sm">{config.icon}</span>
+                  <span className="text-[11px]">{config.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-sm">Prioridade</Label>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {Object.entries(priorityConfig).map(([key, config]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() =>
+                    setNewEvent({
+                      ...newEvent,
+                      priority: key as Priority,
+                    })
+                  }
+                  className={`flex items-center justify-center gap-1.5 p-2 rounded-lg border transition-all ${
+                    newEvent.priority === key
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-card hover:bg-muted"
+                  }`}
+                >
+                  <span className="text-xs">{config.icon}</span>
                   <span className="text-[11px]">{config.label}</span>
                 </button>
               ))}
