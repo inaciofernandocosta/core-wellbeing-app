@@ -1,13 +1,14 @@
 import { useState, useMemo } from "react";
-import { format, addMonths, subMonths, isSameDay, isSameMonth } from "date-fns";
+import { format, addMonths, subMonths, isSameDay, isSameMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, X } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
+import type { DateRange } from "react-day-picker";
 
 type EventCategory = "feriado" | "aniversario" | "ferias" | "evento" | "familia" | "trabalho";
 
@@ -29,12 +30,14 @@ const categoryConfig: Record<EventCategory, { label: string; color: string; prio
 
 const CalendarPage = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [events, setEvents] = useState<ScheduleEvent[]>([
     // Sample events
     { id: "1", title: "Viagem", date: new Date(2026, 0, 31), category: "familia" },
     { id: "2", title: "Carnaval", date: new Date(2026, 1, 16), category: "feriado" },
     { id: "3", title: "Aniversário da Mãe", date: new Date(2026, 1, 20), category: "aniversario" },
+    { id: "4", title: "Férias", date: new Date(2026, 0, 15), category: "ferias" },
+    { id: "5", title: "Reunião importante", date: new Date(2026, 0, 10), category: "trabalho" },
   ]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({
@@ -44,16 +47,20 @@ const CalendarPage = () => {
 
   const handlePrevMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
-    setSelectedDate(undefined); // Clear selection when navigating
+    setDateRange(undefined);
   };
   
   const handleNextMonth = () => {
     setCurrentMonth(addMonths(currentMonth, 1));
-    setSelectedDate(undefined); // Clear selection when navigating
+    setDateRange(undefined);
+  };
+
+  const clearSelection = () => {
+    setDateRange(undefined);
   };
 
   const handleAddEvent = () => {
-    const dateToUse = selectedDate || new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const dateToUse = dateRange?.from || new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
     if (!newEvent.title.trim()) return;
 
     const event: ScheduleEvent = {
@@ -78,12 +85,27 @@ const CalendarPage = () => {
       .sort((a, b) => categoryConfig[a.category].priority - categoryConfig[b.category].priority);
   };
 
+  // Get events for a date range
+  const getEventsForRange = (from: Date, to: Date) => {
+    return events
+      .filter((event) => 
+        isWithinInterval(startOfDay(event.date), { 
+          start: startOfDay(from), 
+          end: endOfDay(to) 
+        })
+      )
+      .sort((a, b) => {
+        const dateDiff = a.date.getTime() - b.date.getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return categoryConfig[a.category].priority - categoryConfig[b.category].priority;
+      });
+  };
+
   // Get events for the current month
   const getEventsForMonth = (month: Date) => {
     return events
       .filter((event) => isSameMonth(event.date, month))
       .sort((a, b) => {
-        // Sort by date first, then by priority
         const dateDiff = a.date.getTime() - b.date.getTime();
         if (dateDiff !== 0) return dateDiff;
         return categoryConfig[a.category].priority - categoryConfig[b.category].priority;
@@ -92,19 +114,28 @@ const CalendarPage = () => {
 
   // Determine which events to show based on selection
   const displayedEvents = useMemo(() => {
-    if (selectedDate) {
-      return getEventsForDate(selectedDate);
+    if (dateRange?.from && dateRange?.to) {
+      return getEventsForRange(dateRange.from, dateRange.to);
+    }
+    if (dateRange?.from) {
+      return getEventsForDate(dateRange.from);
     }
     return getEventsForMonth(currentMonth);
-  }, [selectedDate, currentMonth, events]);
+  }, [dateRange, currentMonth, events]);
 
   // Title for the events section
   const eventsTitle = useMemo(() => {
-    if (selectedDate) {
-      return format(selectedDate, "d 'de' MMMM", { locale: ptBR });
+    if (dateRange?.from && dateRange?.to) {
+      return `${format(dateRange.from, "d MMM", { locale: ptBR })} - ${format(dateRange.to, "d MMM", { locale: ptBR })}`;
+    }
+    if (dateRange?.from) {
+      return format(dateRange.from, "d 'de' MMMM", { locale: ptBR });
     }
     return format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR });
-  }, [selectedDate, currentMonth]);
+  }, [dateRange, currentMonth]);
+
+  // Check if there's any selection
+  const hasSelection = dateRange?.from !== undefined;
 
   // Get highest priority category for a date (for calendar dots)
   const getHighestPriorityCategory = (date: Date): EventCategory | null => {
@@ -136,16 +167,16 @@ const CalendarPage = () => {
           </Button>
         </div>
 
-        {/* Calendar - Full width and responsive */}
+        {/* Calendar - Range mode */}
         <div className="px-3">
           <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
+            mode="range"
+            selected={dateRange}
+            onSelect={setDateRange}
             month={currentMonth}
             onMonthChange={(month) => {
               setCurrentMonth(month);
-              setSelectedDate(undefined);
+              setDateRange(undefined);
             }}
             locale={ptBR}
             className="rounded-xl border border-border bg-card p-2 w-full"
@@ -163,8 +194,11 @@ const CalendarPage = () => {
               day_outside: "text-muted-foreground opacity-50",
               day_disabled: "text-muted-foreground opacity-50",
               day_hidden: "invisible",
-              nav: "hidden", // Hide default nav since we have custom one
-              caption: "hidden", // Hide default caption since we have custom one
+              day_range_start: "bg-primary text-primary-foreground rounded-l-lg rounded-r-none",
+              day_range_end: "bg-primary text-primary-foreground rounded-r-lg rounded-l-none",
+              day_range_middle: "bg-primary/20 text-foreground rounded-none",
+              nav: "hidden",
+              caption: "hidden",
             }}
             components={{
               DayContent: ({ date }) => {
@@ -183,6 +217,19 @@ const CalendarPage = () => {
             }}
           />
         </div>
+
+        {/* Selection indicator & clear button */}
+        {hasSelection && (
+          <div className="px-6 mt-2">
+            <button
+              onClick={clearSelection}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3 w-3" />
+              Limpar seleção
+            </button>
+          </div>
+        )}
 
         {/* Priority Legend - Compact */}
         <div className="px-6 mt-3">
@@ -207,11 +254,9 @@ const CalendarPage = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-base font-semibold capitalize">{eventsTitle}</h3>
-              {!selectedDate && (
-                <p className="text-[10px] text-muted-foreground">
-                  {displayedEvents.length} {displayedEvents.length === 1 ? 'compromisso' : 'compromissos'}
-                </p>
-              )}
+              <p className="text-[10px] text-muted-foreground">
+                {displayedEvents.length} {displayedEvents.length === 1 ? 'compromisso' : 'compromissos'}
+              </p>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
@@ -279,7 +324,7 @@ const CalendarPage = () => {
             {displayedEvents.length === 0 ? (
               <div className="text-center py-6 text-muted-foreground">
                 <p className="text-sm">
-                  {selectedDate ? "Nenhum compromisso neste dia." : "Nenhum compromisso neste mês."}
+                  {hasSelection ? "Nenhum compromisso no período selecionado." : "Nenhum compromisso neste mês."}
                 </p>
                 <p className="text-xs mt-1">
                   Proteja sua vida primeiro, depois adicione trabalho.
@@ -302,9 +347,7 @@ const CalendarPage = () => {
                         {event.title}
                       </p>
                       <p className="text-[10px] text-muted-foreground">
-                        {!selectedDate && (
-                          <span className="mr-2">{format(event.date, "d MMM", { locale: ptBR })}</span>
-                        )}
+                        <span className="mr-2">{format(event.date, "d MMM", { locale: ptBR })}</span>
                         {categoryConfig[event.category].label}
                       </p>
                     </div>
