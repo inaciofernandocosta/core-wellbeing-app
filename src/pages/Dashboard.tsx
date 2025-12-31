@@ -170,13 +170,16 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Today's Tasks */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-foreground">Tarefas de Hoje</h2>
-            <span className="text-xs font-bold text-muted-foreground bg-muted px-2 py-1 rounded-full">
-              {todayTasks.filter(t => t.completed).length}/{todayTasks.length}
-            </span>
+            <button 
+              onClick={() => navigate('/tasks')}
+              className="text-primary text-sm font-semibold flex items-center gap-1 hover:opacity-80 transition-opacity"
+            >
+              Ver todas
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
           
           <div className="space-y-3">
