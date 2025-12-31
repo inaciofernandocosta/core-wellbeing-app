@@ -129,7 +129,7 @@ const Index = () => {
       </div>
 
       {/* Bottom CTA */}
-      <div className="absolute bottom-0 left-0 w-full p-6 pt-24 bg-gradient-to-t from-background via-background/95 to-transparent z-20 pointer-events-none">
+      <div className="absolute bottom-6 left-0 w-full p-6 pt-24 bg-gradient-to-t from-background via-background/95 to-transparent z-20 pointer-events-none">
         <div className="pointer-events-auto">
           <HeroButton onClick={() => navigate('/dashboard')}>Começar Jornada</HeroButton>
         </div>
