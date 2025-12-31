@@ -78,7 +78,7 @@ const Index = () => {
           <div 
             className={`flex flex-col gap-4 transition-all duration-700 delay-150 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
           >
-            <h1 className="text-4xl font-black leading-[1.05] tracking-tight text-foreground">
+            <h1 className="text-2xl font-black leading-[1.1] tracking-tight text-foreground">
               Organize o caos,<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-emerald-300">
                 domine sua vida.
