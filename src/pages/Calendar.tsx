@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, ChevronRight, Plus, Trash2, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, Clock } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import type { DateRange } from "react-day-picker";
 
@@ -19,6 +20,9 @@ interface ScheduleEvent {
   date: Date;
   category: EventCategory;
   pillar?: Pillar;
+  hasTime?: boolean;
+  startTime?: string;
+  endTime?: string;
 }
 
 const pillarConfig: Record<Pillar, { label: string; color: string; icon: string }> = {
@@ -45,16 +49,19 @@ const CalendarPage = () => {
     // Sample events
     { id: "1", title: "Viagem Rio de Janeiro", date: new Date(2026, 0, 31), category: "familia", pillar: "familia" },
     { id: "2", title: "Carnaval", date: new Date(2026, 1, 16), category: "feriado", pillar: "vida" },
-    { id: "3", title: "Aniversário da Mãe", date: new Date(2026, 1, 20), category: "aniversario", pillar: "familia" },
+    { id: "3", title: "Aniversário da Mãe", date: new Date(2026, 1, 20), category: "aniversario", pillar: "familia", hasTime: true, startTime: "19:00" },
     { id: "4", title: "Férias", date: new Date(2026, 0, 15), category: "ferias", pillar: "vida" },
-    { id: "5", title: "Reunião importante", date: new Date(2026, 0, 10), category: "trabalho", pillar: "trabalho" },
-    { id: "6", title: "Academia", date: new Date(2026, 0, 6), category: "evento", pillar: "saude" },
+    { id: "5", title: "Reunião importante", date: new Date(2026, 0, 10), category: "trabalho", pillar: "trabalho", hasTime: true, startTime: "14:00", endTime: "15:30" },
+    { id: "6", title: "Academia", date: new Date(2026, 0, 6), category: "evento", pillar: "saude", hasTime: true, startTime: "07:00", endTime: "08:00" },
   ]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: "",
     category: "familia" as EventCategory,
     pillar: "vida" as Pillar,
+    hasTime: false,
+    startTime: "",
+    endTime: "",
   });
 
   const handlePrevMonth = () => {
@@ -81,10 +88,13 @@ const CalendarPage = () => {
       date: dateToUse,
       category: newEvent.category,
       pillar: newEvent.pillar,
+      hasTime: newEvent.hasTime,
+      startTime: newEvent.hasTime && newEvent.startTime ? newEvent.startTime : undefined,
+      endTime: newEvent.hasTime && newEvent.endTime ? newEvent.endTime : undefined,
     };
 
     setEvents([...events, event]);
-    setNewEvent({ title: "", category: "familia", pillar: "vida" });
+    setNewEvent({ title: "", category: "familia", pillar: "vida", hasTime: false, startTime: "", endTime: "" });
     setIsDialogOpen(false);
   };
 
@@ -350,6 +360,49 @@ const CalendarPage = () => {
                     </div>
                   </div>
 
+                  {/* Time Toggle */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <Label className="text-sm">Definir horário</Label>
+                      </div>
+                      <Switch
+                        checked={newEvent.hasTime}
+                        onCheckedChange={(checked) =>
+                          setNewEvent({ ...newEvent, hasTime: checked, startTime: "", endTime: "" })
+                        }
+                      />
+                    </div>
+
+                    {newEvent.hasTime && (
+                      <div className="flex gap-3 animate-fade-in">
+                        <div className="flex-1">
+                          <Label className="text-xs text-muted-foreground">Início</Label>
+                          <Input
+                            type="time"
+                            value={newEvent.startTime}
+                            onChange={(e) =>
+                              setNewEvent({ ...newEvent, startTime: e.target.value })
+                            }
+                            className="mt-1 h-9"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-xs text-muted-foreground">Fim (opcional)</Label>
+                          <Input
+                            type="time"
+                            value={newEvent.endTime}
+                            onChange={(e) =>
+                              setNewEvent({ ...newEvent, endTime: e.target.value })
+                            }
+                            className="mt-1 h-9"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <Button onClick={handleAddEvent} className="w-full">
                     Salvar
                   </Button>
@@ -382,9 +435,16 @@ const CalendarPage = () => {
                       }`}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground text-sm truncate">
-                        {event.title}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-foreground text-sm truncate">
+                          {event.title}
+                        </p>
+                        {event.hasTime && event.startTime && (
+                          <span className="text-[10px] text-primary font-semibold bg-primary/10 px-1.5 py-0.5 rounded shrink-0">
+                            {event.startTime}{event.endTime && ` - ${event.endTime}`}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
                         <span>{format(event.date, "d MMM", { locale: ptBR })}</span>
                         <span>•</span>
