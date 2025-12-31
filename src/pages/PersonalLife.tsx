@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ChevronLeft, Plus, Check, Target, Trash2, X } from "lucide-react";
+import { ChevronLeft, Plus, Check, Target, Trash2, X, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import AddEventDialog, { ScheduleEvent } from "@/components/AddEventDialog";
 
 interface Goal {
   id: string;
@@ -46,9 +47,20 @@ const PersonalLife = () => {
   ]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: "", description: "" });
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
   const [newMilestone, setNewMilestone] = useState<Record<string, string>>({});
+  const [events, setEvents] = useState<ScheduleEvent[]>([]);
+
+  const handleAddEvent = (eventData: Omit<ScheduleEvent, "id" | "date">) => {
+    const event: ScheduleEvent = {
+      ...eventData,
+      id: Date.now().toString(),
+      date: new Date(),
+    };
+    setEvents([...events, event]);
+  };
 
   const handleAddMilestone = (goalId: string) => {
     const text = newMilestone[goalId]?.trim();
@@ -131,8 +143,16 @@ const PersonalLife = () => {
               <h1 className="text-2xl font-bold text-foreground">Vida Pessoal</h1>
               <p className="text-muted-foreground text-sm">Suas metas pessoais</p>
             </div>
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center shadow-lg">
-              <Target className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setIsEventDialogOpen(true)}
+                className="h-10 w-10 rounded-xl bg-primary/20 ring-1 ring-primary/30 flex items-center justify-center hover:bg-primary/30 transition-colors"
+              >
+                <Calendar className="w-5 h-5 text-primary" />
+              </button>
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center shadow-lg">
+                <Target className="w-6 h-6 text-white" />
+              </div>
             </div>
           </div>
 
@@ -298,6 +318,13 @@ const PersonalLife = () => {
           )}
         </main>
       </div>
+
+      <AddEventDialog
+        open={isEventDialogOpen}
+        onOpenChange={setIsEventDialogOpen}
+        onAddEvent={handleAddEvent}
+        defaultPillar="vida"
+      />
 
       <BottomNav />
     </>
