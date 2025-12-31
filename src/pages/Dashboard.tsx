@@ -1,4 +1,5 @@
 import { ChevronRight, Zap, Target, Heart, Users, Briefcase } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 
 const pillars = [
@@ -52,9 +53,17 @@ const todayTasks = [
 ];
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const today = new Date();
   const dayName = today.toLocaleDateString('pt-BR', { weekday: 'long' });
   const dateFormatted = today.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+
+  const getPillarRoute = (pillarName: string) => {
+    const routes: Record<string, string> = {
+      "Vida Pessoal": "/personal-life",
+    };
+    return routes[pillarName] || "/dashboard";
+  };
 
   return (
     <>
@@ -107,6 +116,7 @@ const Dashboard = () => {
               return (
                 <div 
                   key={pillar.id}
+                  onClick={() => navigate(getPillarRoute(pillar.name))}
                   className="bg-card rounded-2xl p-4 ring-1 ring-border/50 shadow-card dark:shadow-card-dark hover:scale-[1.02] transition-transform cursor-pointer"
                 >
                   <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${pillar.color} flex items-center justify-center mb-3`}>
