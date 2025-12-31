@@ -288,7 +288,7 @@ const CalendarPage = () => {
                   Adicionar
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-[340px] rounded-2xl">
+              <DialogContent className="max-w-[340px] rounded-2xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Novo Compromisso</DialogTitle>
                 </DialogHeader>
