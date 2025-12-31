@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Clock } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, Clock, CalendarDays } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export type EventCategory = "feriado" | "aniversario" | "ferias" | "evento" | "familia" | "trabalho";
 export type Pillar = "vida" | "trabalho" | "saude" | "familia" | "objetivos";
@@ -13,6 +18,7 @@ export interface ScheduleEvent {
   id: string;
   title: string;
   date: Date;
+  endDate?: Date;
   category: EventCategory;
   pillar?: Pillar;
   hasTime?: boolean;
@@ -40,7 +46,8 @@ export const categoryConfig: Record<EventCategory, { label: string; color: strin
 interface AddEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddEvent: (event: Omit<ScheduleEvent, "id" | "date">) => void;
+  onAddEvent: (event: Omit<ScheduleEvent, "id">) => void;
+  selectedDate?: Date;
   defaultPillar?: Pillar;
   triggerButton?: React.ReactNode;
 }
@@ -48,7 +55,8 @@ interface AddEventDialogProps {
 const AddEventDialog = ({ 
   open, 
   onOpenChange, 
-  onAddEvent, 
+  onAddEvent,
+  selectedDate,
   defaultPillar = "vida",
   triggerButton 
 }: AddEventDialogProps) => {
@@ -59,13 +67,21 @@ const AddEventDialog = ({
     hasTime: false,
     startTime: "",
     endTime: "",
+    hasDateRange: false,
+    startDate: selectedDate || new Date(),
+    endDate: undefined as Date | undefined,
   });
+
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
 
   const handleAddEvent = () => {
     if (!newEvent.title.trim()) return;
 
     onAddEvent({
       title: newEvent.title,
+      date: newEvent.startDate,
+      endDate: newEvent.hasDateRange && newEvent.endDate ? newEvent.endDate : undefined,
       category: newEvent.category,
       pillar: newEvent.pillar,
       hasTime: newEvent.hasTime,
@@ -73,7 +89,17 @@ const AddEventDialog = ({
       endTime: newEvent.hasTime && newEvent.endTime ? newEvent.endTime : undefined,
     });
 
-    setNewEvent({ title: "", category: "familia", pillar: defaultPillar, hasTime: false, startTime: "", endTime: "" });
+    setNewEvent({ 
+      title: "", 
+      category: "familia", 
+      pillar: defaultPillar, 
+      hasTime: false, 
+      startTime: "", 
+      endTime: "",
+      hasDateRange: false,
+      startDate: selectedDate || new Date(),
+      endDate: undefined,
+    });
     onOpenChange(false);
   };
 
@@ -149,6 +175,91 @@ const AddEventDialog = ({
                   <span className="text-[11px]">{config.label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Date Selection */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                <Label className="text-sm">Período de dias</Label>
+              </div>
+              <Switch
+                checked={newEvent.hasDateRange}
+                onCheckedChange={(checked) =>
+                  setNewEvent({ ...newEvent, hasDateRange: checked, endDate: undefined })
+                }
+              />
+            </div>
+
+            <div className={cn(
+              "flex gap-3",
+              newEvent.hasDateRange ? "animate-fade-in" : ""
+            )}>
+              <div className="flex-1">
+                <Label className="text-xs text-muted-foreground">
+                  {newEvent.hasDateRange ? "Data início" : "Data"}
+                </Label>
+                <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full mt-1 h-9 justify-start text-left font-normal text-xs"
+                    >
+                      {format(newEvent.startDate, "dd/MM/yyyy", { locale: ptBR })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={newEvent.startDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setNewEvent({ ...newEvent, startDate: date });
+                          setStartDateOpen(false);
+                        }
+                      }}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {newEvent.hasDateRange && (
+                <div className="flex-1 animate-fade-in">
+                  <Label className="text-xs text-muted-foreground">Data fim</Label>
+                  <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full mt-1 h-9 justify-start text-left font-normal text-xs"
+                      >
+                        {newEvent.endDate 
+                          ? format(newEvent.endDate, "dd/MM/yyyy", { locale: ptBR })
+                          : "Selecionar"
+                        }
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={newEvent.endDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            setNewEvent({ ...newEvent, endDate: date });
+                            setEndDateOpen(false);
+                          }
+                        }}
+                        disabled={(date) => date < newEvent.startDate}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
             </div>
           </div>
 
