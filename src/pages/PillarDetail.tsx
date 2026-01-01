@@ -251,18 +251,18 @@ export default function PillarDetail() {
                     {pillar && !pillar.is_default && (
                       <>
                         <button
-                          onClick={() => setShareModalOpen(true)}
-                          className="h-8 w-8 rounded-full hover:bg-muted flex items-center justify-center"
-                          aria-label="Compartilhar pilar"
-                        >
-                          <Share2 className="w-4 h-4 text-muted-foreground" />
-                        </button>
-                        <button
                           onClick={() => setEditingPillarName(true)}
                           className="h-8 w-8 rounded-full hover:bg-muted flex items-center justify-center"
                           aria-label="Editar nome do pilar"
                         >
                           <Pencil className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => setShareModalOpen(true)}
+                          className="h-8 w-8 rounded-full hover:bg-muted flex items-center justify-center"
+                          aria-label="Compartilhar pilar"
+                        >
+                          <Share2 className="w-4 h-4 text-muted-foreground" />
                         </button>
                         <button
                           onClick={() => setShowDeleteModal(true)}
