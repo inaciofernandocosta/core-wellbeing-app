@@ -1,32 +1,41 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format, addMonths, subMonths, isSameDay, isSameMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, Clock, Loader2, Pencil, Repeat } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import AddEventDialog, { 
   ScheduleEvent, 
-  Pillar, 
   Priority,
-  priorityConfig, 
-  pillarConfig 
+  priorityConfig
 } from "@/components/AddEventDialog";
 import type { DateRange } from "react-day-picker";
+import { useSchedule } from "@/hooks/useSchedule";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "react-router-dom";
 
 const CalendarPage = () => {
+  const { user } = useAuth();
+  const location = useLocation();
+  const { events, loading, addEvent, updateEvent, deleteEvent, deleteRecurringEvents } = useSchedule();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [events, setEvents] = useState<ScheduleEvent[]>([
-    // Sample events
-    { id: "1", title: "Viagem Rio de Janeiro", date: new Date(2026, 0, 31), pillar: "familia", priority: "alta" },
-    { id: "2", title: "Carnaval", date: new Date(2026, 1, 16), pillar: "vida", priority: "alta" },
-    { id: "3", title: "Aniversário da Mãe", date: new Date(2026, 1, 20), pillar: "familia", priority: "alta", hasTime: true, startTime: "19:00" },
-    { id: "4", title: "Férias", date: new Date(2026, 0, 15), pillar: "vida", priority: "alta" },
-    { id: "5", title: "Reunião importante", date: new Date(2026, 0, 10), pillar: "trabalho", priority: "media", hasTime: true, startTime: "14:00", endTime: "15:30" },
-    { id: "6", title: "Academia", date: new Date(2026, 0, 6), pillar: "saude", priority: "baixa", hasTime: true, startTime: "07:00", endTime: "08:00" },
-  ]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<ScheduleEvent | null>(null);
+  const [deleteScope, setDeleteScope] = useState<"this" | "future" | "all" | null>(null);
+  const [eventToEdit, setEventToEdit] = useState<ScheduleEvent | null>(null);
+
+  // Detect if event was passed from Dashboard
+  useEffect(() => {
+    const state = location.state as { selectedEvent?: ScheduleEvent };
+    if (state?.selectedEvent) {
+      setEventToEdit(state.selectedEvent);
+      setIsDialogOpen(true);
+      // Clear the state to prevent reopening on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const handlePrevMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
@@ -42,18 +51,88 @@ const CalendarPage = () => {
     setDateRange(undefined);
   };
 
-  const handleAddEvent = (eventData: Omit<ScheduleEvent, "id">) => {
-    const event: ScheduleEvent = {
-      id: Date.now().toString(),
-      ...eventData,
-    };
+  // Custom handler to fix single day selection UX
+  const handleDateSelect = (range: DateRange | undefined) => {
+    if (!range) {
+      setDateRange(undefined);
+      return;
+    }
 
-    setEvents([...events, event]);
-    setIsDialogOpen(false);
+    // If only 'from' is set (single day click or start of range)
+    if (range.from && !range.to) {
+      // Check if clicking the same day that's already selected
+      if (dateRange?.from && isSameDay(dateRange.from, range.from) && !dateRange.to) {
+        // Clicking same day again - keep it selected
+        return;
+      }
+      
+      // If there's already a 'from' date without 'to', this might be completing a range
+      if (dateRange?.from && !dateRange.to && !isSameDay(dateRange.from, range.from)) {
+        // Second click on different day - complete the range
+        setDateRange(range);
+      } else {
+        // New single day selection - force clear by setting undefined first
+        setDateRange(undefined);
+        // Use setTimeout to ensure state is cleared before setting new value
+        setTimeout(() => {
+          setDateRange({ from: range.from, to: undefined });
+        }, 0);
+      }
+    } else {
+      // Complete range with both from and to
+      setDateRange(range);
+    }
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(events.filter((e) => e.id !== id));
+  const handleAddEvent = async (eventData: Omit<ScheduleEvent, "id">) => {
+    if (eventToEdit) {
+      // Se estiver editando, atualizar o evento existente
+      await updateEvent(eventToEdit.id, eventData);
+    } else {
+      // Se não, criar novo evento
+      await addEvent(eventData);
+    }
+    setIsDialogOpen(false);
+    setEventToEdit(null);
+  };
+
+  const handleDeleteEvent = async (event: ScheduleEvent) => {
+    console.log('🗑️ Evento a deletar:', event);
+    console.log('Tem recurring_group_id?', !!event.recurring_group_id);
+    console.log('recurring_group_id:', event.recurring_group_id);
+    setEventToDelete(event);
+    setDeleteScope(null); // Reset scope
+  };
+
+  const handleSelectScope = (scope: "this" | "future" | "all") => {
+    setDeleteScope(scope);
+  };
+
+  const confirmDelete = async () => {
+    if (!eventToDelete || !deleteScope) return;
+
+    if (eventToDelete.recurring_group_id && deleteScope !== "this") {
+      await deleteRecurringEvents(
+        eventToDelete.recurring_group_id,
+        deleteScope,
+        eventToDelete.date
+      );
+    } else {
+      await deleteEvent(eventToDelete.id);
+    }
+    
+    setEventToDelete(null);
+    setDeleteScope(null);
+  };
+
+  const cancelDelete = () => {
+    setEventToDelete(null);
+    setDeleteScope(null);
+  };
+
+  const handleEditEvent = (event: ScheduleEvent) => {
+    setEventToEdit(event);
+    setIsDialogOpen(true);
   };
 
   const priorityOrder: Record<Priority, number> = { alta: 1, media: 2, baixa: 3 };
@@ -122,6 +201,18 @@ const CalendarPage = () => {
     return dateEvents.length > 0 ? dateEvents[0].priority : null;
   };
 
+  if (loading) {
+    return (
+      <>
+        <div className="min-h-screen bg-background max-w-md mx-auto flex flex-col items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+          <p className="text-muted-foreground animate-pulse">Carregando sua agenda...</p>
+        </div>
+        <BottomNav />
+      </>
+    );
+  }
+
   return (
     <>
       <div className="min-h-screen bg-background max-w-md mx-auto flex flex-col pb-28">
@@ -151,7 +242,7 @@ const CalendarPage = () => {
           <Calendar
             mode="range"
             selected={dateRange}
-            onSelect={setDateRange}
+            onSelect={handleDateSelect}
             month={currentMonth}
             onMonthChange={(month) => {
               setCurrentMonth(month);
@@ -169,7 +260,7 @@ const CalendarPage = () => {
               cell: "flex-1 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
               day: "h-10 w-full rounded-lg font-normal hover:bg-muted transition-colors",
               day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-              day_today: "bg-accent text-accent-foreground",
+              day_today: "border-2 border-primary/50 font-semibold",
               day_outside: "text-muted-foreground opacity-50",
               day_disabled: "text-muted-foreground opacity-50",
               day_hidden: "invisible",
@@ -239,9 +330,13 @@ const CalendarPage = () => {
             </div>
             <AddEventDialog
               open={isDialogOpen}
-              onOpenChange={setIsDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) setEventToEdit(null);
+              }}
               onAddEvent={handleAddEvent}
               selectedDate={dateRange?.from || new Date()}
+              eventToEdit={eventToEdit}
               triggerButton={
                 <Button size="sm" className="bg-primary text-primary-foreground h-8 text-xs">
                   <Plus className="h-3.5 w-3.5 mr-1" />
@@ -279,6 +374,11 @@ const CalendarPage = () => {
                         <p className="font-medium text-foreground text-sm truncate">
                           {event.title}
                         </p>
+                        {event.recurring_group_id && (
+                          <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center shrink-0">
+                            <Repeat className="w-3 h-3 text-primary" />
+                          </div>
+                        )}
                         {event.hasTime && event.startTime && (
                           <span className="text-[10px] text-primary font-semibold bg-primary/10 px-1.5 py-0.5 rounded shrink-0">
                             {event.startTime}{event.endTime && ` - ${event.endTime}`}
@@ -288,21 +388,31 @@ const CalendarPage = () => {
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
                         <span>{format(event.date, "d MMM", { locale: ptBR })}</span>
                         <span>•</span>
-                        <span className={`font-medium bg-gradient-to-r ${pillarConfig[event.pillar].color} bg-clip-text text-transparent`}>
-                          {pillarConfig[event.pillar].label}
+                        <span className={`font-medium bg-gradient-to-r ${event.pillar?.color || 'from-primary to-emerald-400'} bg-clip-text text-transparent`}>
+                          {event.pillar?.name || 'Sem pilar'}
                         </span>
                         <span>•</span>
                         <span>{priorityConfig[event.priority].label}</span>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleDeleteEvent(event.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        onClick={() => handleEditEvent(event)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDeleteEvent(event)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -310,6 +420,186 @@ const CalendarPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Modal */}
+      {eventToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-card rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-scale-in border border-border">
+            {!deleteScope ? (
+              // Etapa 1: Escolher tipo de exclusão
+              eventToDelete.recurring_group_id ? (
+                // Evento recorrente - mostrar opções
+                <div className="flex flex-col">
+                  <div className="p-6 border-b border-border">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                        <Trash2 className="w-5 h-5 text-destructive" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Excluir Compromisso</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground ml-13">{eventToDelete.title}</p>
+                  </div>
+
+                  <div className="p-6">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Este compromisso se repete. O que deseja excluir?
+                    </p>
+                    
+                    <div className="space-y-2">
+                      <button
+                        className="w-full p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                        onClick={() => handleSelectScope("this")}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
+                            <span className="text-sm">📅</span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">Apenas este</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(eventToDelete.date, "d 'de' MMMM", { locale: ptBR })}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        className="w-full p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                        onClick={() => handleSelectScope("future")}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
+                            <span className="text-sm">📆</span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">Este e próximos</p>
+                            <p className="text-xs text-muted-foreground">
+                              A partir de {format(eventToDelete.date, "d 'de' MMM", { locale: ptBR })}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
+                        className="w-full p-4 rounded-xl border-2 border-destructive/30 hover:border-destructive hover:bg-destructive/5 transition-all text-left group"
+                        onClick={() => handleSelectScope("all")}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-destructive/10 group-hover:bg-destructive/20 flex items-center justify-center transition-colors">
+                            <span className="text-sm">🗑️</span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-destructive text-sm">Toda a série</p>
+                            <p className="text-xs text-muted-foreground">
+                              Todos os compromissos desta série
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      className="w-full mt-4"
+                      onClick={cancelDelete}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // Evento único - confirmação direta
+                <div className="flex flex-col">
+                  <div className="p-6 border-b border-border">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                        <Trash2 className="w-5 h-5 text-destructive" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Excluir Compromisso</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground ml-13">{eventToDelete.title}</p>
+                  </div>
+
+                  <div className="p-6">
+                    <p className="text-sm text-muted-foreground mb-6 text-center">
+                      Tem certeza que deseja excluir este compromisso?
+                    </p>
+
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={cancelDelete}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={async () => {
+                          await deleteEvent(eventToDelete.id);
+                          cancelDelete();
+                        }}
+                      >
+                        Excluir
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )
+            ) : (
+              // Etapa 2: Confirmar ação
+              <div className="flex flex-col">
+                <div className="p-6 border-b border-border">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <Trash2 className="w-5 h-5 text-destructive" />
+                    </div>
+                    <h3 className="text-lg font-semibold">Confirmar Exclusão</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground ml-13">{eventToDelete.title}</p>
+                </div>
+
+                <div className="p-6">
+                  <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                    <div className="flex gap-3">
+                      <span className="text-xl">⚠️</span>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium mb-1">
+                          {deleteScope === "this" && "Você está excluindo apenas este compromisso"}
+                          {deleteScope === "future" && "Você está excluindo este e todos os próximos"}
+                          {deleteScope === "all" && "Você está excluindo toda a série"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Esta ação não pode ser desfeita.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setDeleteScope(null)}
+                    >
+                      Voltar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={confirmDelete}
+                    >
+                      Confirmar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <BottomNav />
     </>
   );
